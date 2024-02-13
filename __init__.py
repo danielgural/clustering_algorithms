@@ -149,7 +149,7 @@ def _cluster_inputs(ctx, inputs):
 
     alg = ctx.params.get("cluster_radio_group", None)
 
-    if alg == "K-means" or alg is None:
+    if alg == "K-means":
         inputs.int(
                 "n_clusters",
                 label="n_clusters",
@@ -499,15 +499,13 @@ def _cluster_inputs(ctx, inputs):
             view=types.SwitchView(),
             )
 
-    tag_samples = ctx.params.get("tag_samples",False)
 
-    if tag_samples:
-        inputs.str(
+    inputs.str(
             "tag_name",
             label="What would like the tag to be?",
-            description="Name the tag for your clusters",
+            description="Name the tag for your clusters (i.e. Cluster (X) )",
             default="Cluster"
-            )
+        )
 
 
     inputs.bool(
@@ -576,6 +574,7 @@ def _cluster_inputs(ctx, inputs):
 
     return True
 
+"""
 def alg_inputs(inputs, alg):
     if alg == "K-means":
         inputs.int(
@@ -918,47 +917,178 @@ def alg_inputs(inputs, alg):
                 from the leaves as new samples.",
             view=types.FieldView(componentsProps={'field': {'min': 2, "step": 1, "default": 3}}),
         )
-
+"""
 
 def _cluster(ctx):
-    outlier_alg = ctx.params.get("outlier_radio_group")
+    alg = ctx.params.get("cluster_radio_group")
     field = ctx.params.get("label_radio_group")
     by_class = ctx.params.get("filter_by_class")
     target = ctx.params.get("target", None)
     target_view = _get_target_view(ctx, target)
-    tag_samples = ctx.params.get("tag_samples")
     tag_name = ctx.params.get("tag_name", None)
     model_choice = ctx.params.get("model_radio_group")
     force_embeddings = ctx.params.get("force_embeddings")
 
+    
+
     model = foz.load_zoo_model(model_choice)
 
-    if outlier_alg == "Local Outlier Factor":
-        contamination = ctx.params.get("contamination")
-        if by_class:
-            cls = ctx.params.get("class_radio_group")
-            target_view = target_view.filter_labels(
-                field, (F("label") == cls)
-            )
-            
-        if "embeddings" not in list(target_view.get_field_schema().keys()) or force_embeddings:
-            target_view.compute_embeddings(model, embeddings_field="embeddings")
+    if by_class:
+        cls = ctx.params.get("class_radio_group")
+        target_view = target_view.filter_labels(
+            field, (F("label") == cls)
+        )
 
 
-        embeddings = np.array(target_view.values("embeddings"))
-        mapper = umap.UMAP().fit(embeddings)
-        outlier_scores = sklearn.neighbors.LocalOutlierFactor(contamination=contamination).fit_predict(mapper.embedding_)
-        outliers = target_view[outlier_scores == -1]
-
-        if tag_samples:
-            outliers.tag_samples(tag_name)
-
-        ctx.trigger("set_view", {"view": outliers._serialize()})
+    if "embeddings" not in list(target_view.get_field_schema().keys()) or force_embeddings:
+        target_view.compute_embeddings(model, embeddings_field="embeddings")
 
 
+    embeddings = np.array(target_view.values("embeddings"))
+    mapper = umap.UMAP().fit(embeddings)
+    embeddings = mapper.embedding_
+
+    if alg == "K-means":
+        n_clusters = ctx.params.get("n_clusters")
+        max_iter = ctx.params.get("max_iter")
+        tol = ctx.params.get("tol")
+        random_state = ctx.params.get("random_state")
+        alg_choice = ctx.params.get("algorithm")
+        kmeans = sklearn.cluster.KMeans(
+            n_clusters=n_clusters,
+            max_iter=max_iter,
+            tol=tol,
+            random_state=random_state,
+            algorithm=alg_choice,
+        ).fit(embeddings)
+        for sample, cluster in zip(target_view,kmeans.labels_):
+            sample.tags.append(tag_name + str(cluster))
+    elif alg == "Affinity Propagation":
+
+        damping = ctx.params.get("damping")
+        max_iter = ctx.params.get("max_iter")
+        convergence_iter = ctx.params.get("convergence_iter")
+        preference = ctx.params.get("preference")
+        random_state = ctx.params.get("random_state")
+        affinity = ctx.params.get("affinity")
+
+        af = sklearn.cluster.AffinityPropagation(
+            damping=damping,
+            max_iter=max_iter,
+            convergence_iter=convergence_iter,
+            preference=preference,
+            affinity=affinity,
+            random_state=random_state
+        ).fit(embeddings)
+        for sample, cluster in zip(target_view,af.labels_):
+            sample.tags.append(tag_name + str(cluster))
+
+    elif alg == "Mean Shift":
+        bandwidth_quantile = ctx.params.get("bandwidth_quantile")
+        bandwidth_n_samples = ctx.params.get("bandwidth_n_samples")
+        bin_seeding = ctx.params.get("bin_seeding")
+        cluster_all = ctx.params.get("cluster_all")
+        max_iter = ctx.params.get("max_iter")
+        random_state = ctx.params.get("random_state")
+
+        bandwidth = sklearn.cluster.estimate_bandwidth(embeddings, quantile=bandwidth_quantile, n_samples=bandwidth_n_samples)
+        ms = sklearn.cluster.MeanShift(
+            bandwidth=bandwidth,
+            bin_seeding=bin_seeding,
+            cluster_all=cluster_all,
+            max_iter=max_iter,
+            random_state=random_state
+            ).fit(embeddings)
+        for sample, cluster in zip(target_view,ms.labels_):
+            sample.tags.append(tag_name + str(cluster))
+        
+
+    elif  alg == "Agglomerative (Hierarchical)":
+
+        n_clusters = ctx.params.get("n_clusters")
+        linkage = ctx.params.get("linkage")
+        ag = sklearn.cluster.AgglomerativeClustering(linkage=linkage,n_clusters=n_clusters).fit(embeddings)
+        for sample, cluster in zip(target_view,ag.labels_):
+            sample.tags.append(tag_name + " " + str(cluster))
+        
+    elif alg == "DBSCAN":
+
+        eps = ctx.params.get("eps")
+        min_samples = ctx.params.get("min_samples")
+        algorithm = ctx.params.get("algorithm")
+        leaf_size = ctx.params.get("leaf_size")
+        p = ctx.params.get("p")
+
+        db =sklearn.cluster.DBSCAN(
+            eps=eps,
+            min_samples=min_samples,
+            algorithm=algorithm,
+            leaf_size=leaf_size,
+            p=p
+        ).fit(embeddings)
+        for sample, cluster in zip(target_view,db.labels_):
+            sample.tags.append(tag_name + " " + str(cluster))
+
+    elif alg == "HDBSCAN":
+
+        min_cluster_size = ctx.params.get("min_cluster_size")
+        min_samples = ctx.params.get("min_samples")
+
+        cluster_selection_epsilon = ctx.params.get("cluster_selection_epsilon" )
+        max_cluster_size = ctx.params.get("max_cluster_size")
+        alpha = ctx.params.get("alpha")
+        algorithm = ctx.params.get("algorithm")
+        leaf_size = ctx.params.get("leaf_size")
+
+        hdb = sklearn.cluster.HDBSCAN(
+            min_cluster_size=min_cluster_size,
+            min_samples=min_samples,
+            cluster_selection_epsilon=cluster_selection_epsilon,
+            max_cluster_size=max_cluster_size,
+            alpha=alpha,
+            algorithm=algorithm,
+            leaf_size=leaf_size,
+        ).fit(embeddings)
+        for sample, cluster in zip(target_view,hdb.labels_):
+            sample.tags.append(tag_name + " " + str(cluster))
 
 
-    return
+    elif alg == "OPTICS":
+
+        min_samples = ctx.params.get("min_samples")
+        p = ctx.params.get("p")
+        algorithm = ctx.params.get("algorithm")
+        leaf_size = ctx.params.get("leaf_size")
+
+        op = sklearn.cluster.OPTICS(
+            min_samples=min_samples,
+            p=p,
+            algorithm=algorithm,
+            leaf_size=leaf_size
+        ).fit(embeddings)
+        for sample, cluster in zip(target_view,op.labels_):
+            sample.tags.append(tag_name + " " + str(cluster))
+
+    elif alg == "BIRCH":
+
+        threshold = ctx.params.get("threshold")
+        branching_factor = ctx.params.get("branching_factor")
+        n_clusters = ctx.params.get("n_clusters")
+
+        birch = sklearn.cluster.BIRCH(
+            threshold=threshold,
+            branching_factor=branching_factor,
+            n_clusters=n_clusters
+        ).fit(embeddings)
+
+        for sample, cluster in zip(target_view,op.labels_):
+            sample.tags.append(tag_name + " " + str(cluster))        
+
+
+    
+
+    return True
+
 
 
 

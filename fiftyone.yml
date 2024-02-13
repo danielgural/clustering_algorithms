@@ -1,0 +1,10 @@
+name: "@danielgural/cluster_algorithms"
+description: Cluster Algorithms
+version: 1.0.0
+fiftyone:
+  version: "*"
+url: https://github.com/danielgural/ocluster_algorithms/blob/main/README.md
+license: Apache 2.0
+operators:
+  - cluster_samples
+

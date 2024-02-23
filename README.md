@@ -1,7 +1,7 @@
 ## Outlier Detection
 
-Will update
-![cluster Detection](https://github.com/danielgural/semantic_video_search/blob/main/assets/video_semantic_search.gif)
+
+![cluster Detection](https://github.com/danielgural/clustering_algorithms/blob/main/assets/cluster.gif)
 
 This plugin is a Python plugin that allows for you to find the clusters in your dataset!
 

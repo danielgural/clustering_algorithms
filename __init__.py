@@ -26,7 +26,7 @@ class ClusterSamples(foo.Operator):
             name="cluster_samples",
             label="Cluster Samples",
             description="Cluster your samples with various algorithms!",
-            icon="/assets/binoculars.svg",
+            icon="/assets/cluster.svg",
             dynamic=True,
 
         )

@@ -1,4 +1,4 @@
-## Outlier Detection
+## Automated Clustering
 
 
 ![cluster Detection](https://github.com/danielgural/clustering_algorithms/blob/main/assets/cluster.gif)

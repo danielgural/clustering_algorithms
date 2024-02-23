@@ -21,7 +21,7 @@ Finds clusters in your dataset based on embeddings from [FiftyOne Model Zoo](htt
 
 Make sure to take advantage of optional inputs such as finding clusters within a specific class, tagging clusters, or optionally regenerating embeddings from a different model!
 
-![cluster Detection Inputs](https://github.com/danielgural/clustering_algorithms/blob/main/assets/outlier_inputs.png)
+[Cluster Detection Algorithms Used From sklearn](https://scikit-learn.org/stable/modules/clustering.html)
 
 
 

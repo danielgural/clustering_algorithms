@@ -515,9 +515,9 @@ def _cluster_inputs(ctx, inputs):
 
 
     inputs.str(
-            "tag_name",
-            label="What would like the tag to be?",
-            description="Name the tag for your clusters (i.e. Cluster (X) )",
+            "field_name",
+            label="What would like the field name to be?",
+            description="Name the field for your clusters )",
             default="Cluster"
         )
 
@@ -596,7 +596,7 @@ def _cluster(ctx):
     by_class = ctx.params.get("filter_by_class")
     target = ctx.params.get("target", None)
     target_view = _get_target_view(ctx, target)
-    tag_name = ctx.params.get("tag_name", None)
+    field_name = ctx.params.get("field_name", None)
     model_choice = ctx.params.get("model_radio_group")
     force_embeddings = ctx.params.get("force_embeddings")
 
@@ -636,7 +636,7 @@ def _cluster(ctx):
             algorithm=alg_choice,
         ).fit(embeddings)
         for sample, cluster in zip(target_view,kmeans.labels_):
-            sample.tags.append(tag_name + " " +  str(cluster))
+            sample[field_name] = str(cluster)
             sample.save()
     elif alg == "Affinity Propagation":
 
@@ -659,7 +659,7 @@ def _cluster(ctx):
             random_state=random_state
         ).fit(embeddings)
         for sample, cluster in zip(target_view,af.labels_):
-            sample.tags.append(tag_name + " " +  str(cluster))
+            sample[field_name] = str(cluster)
             sample.save()
 
     elif alg == "Mean Shift":
@@ -682,7 +682,7 @@ def _cluster(ctx):
             random_state=random_state
             ).fit(embeddings)
         for sample, cluster in zip(target_view,ms.labels_):
-            sample.tags.append(tag_name + " " +  str(cluster))
+            sample[field_name] = str(cluster)
             sample.save()
         
 
@@ -694,7 +694,7 @@ def _cluster(ctx):
         linkage = ctx.params.get("linkage")
         ag = AgglomerativeClustering(linkage=linkage,n_clusters=n_clusters).fit(embeddings)
         for sample, cluster in zip(target_view,ag.labels_):
-            sample.tags.append(tag_name + " " + str(cluster))
+            sample[field_name] = str(cluster)
             sample.save()
         
     elif alg == "DBSCAN":
@@ -715,7 +715,7 @@ def _cluster(ctx):
             p=p
         ).fit(embeddings)
         for sample, cluster in zip(target_view,db.labels_):
-            sample.tags.append(tag_name + " " + str(cluster))
+            sample[field_name] = str(cluster)
             sample.save()
 
     elif alg == "HDBSCAN":
@@ -741,7 +741,7 @@ def _cluster(ctx):
             leaf_size=leaf_size,
         ).fit(embeddings)
         for sample, cluster in zip(target_view,hdb.labels_):
-            sample.tags.append(tag_name + " " + str(cluster))
+            sample[field_name] = str(cluster)
             sample.save()
 
 
@@ -761,7 +761,7 @@ def _cluster(ctx):
             leaf_size=leaf_size
         ).fit(embeddings)
         for sample, cluster in zip(target_view,op.labels_):
-            sample.tags.append(tag_name + " " + str(cluster))
+            sample[field_name] = str(cluster)
             sample.save()
 
     elif alg == "BIRCH":
@@ -779,7 +779,7 @@ def _cluster(ctx):
         ).fit(embeddings)
 
         for sample, cluster in zip(target_view,op.labels_):
-            sample.tags.append(tag_name + " " + str(cluster))      
+            sample[field_name] = str(cluster)     
             sample.save()  
 
 
